@@ -1,4 +1,4 @@
-# 迷宫设计项目 —— 主入口
+# 迷宫设计项目 —— 主入口（4 算法对比）
 # 用法: python main.py
 
 import os
@@ -9,6 +9,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from maze import Maze
 from generators.backtrack_dfs import generate_maze_backtrack_dfs
+from generators.divide_conquer import generate_maze_divide_conquer
+from generators.greedy import generate_maze_greedy
+from generators.branch_bound_bfs import generate_maze_branch_bound_bfs
 from visualizer import (
     draw_maze, animate_generation, capture_snapshots_from_generator,
     draw_dp_path, animate_dp_collection
@@ -17,81 +20,80 @@ from dp_collector import collect_resources, collect_resources_snapshots
 from boss_fight import boss_fight_branch_bound
 
 
+ALGORITHMS = {
+    "backtrack_dfs": ("DFS Backtracking", generate_maze_backtrack_dfs),
+    "divide_conquer": ("Divide & Conquer", generate_maze_divide_conquer),
+    "greedy": ("Greedy (Kruskal)", generate_maze_greedy),
+    "branch_bound_bfs": ("Branch & Bound BFS", generate_maze_branch_bound_bfs),
+}
+
+
 def main():
     n = 15
     output_dir = os.path.join(os.path.dirname(__file__), '..', 'output')
     os.makedirs(output_dir, exist_ok=True)
 
-    # ── 1. 迷宫生成 ─────────────────────────────────────
-    print(f"[1/4] Generate {n}x{n} maze...")
-    maze = Maze(n)
-    snapshots = capture_snapshots_from_generator(maze, generate_maze_backtrack_dfs)
-    animate_generation(snapshots, os.path.join(output_dir, 'backtrack_dfs.gif'),
-                       interval=80, title=f'DFS {n}x{n}')
-    draw_maze(maze, title=f'DFS {n}x{n}',
-              save_path=os.path.join(output_dir, 'backtrack_dfs_final.png'))
+    results = []
 
-    # ── 2. DP 资源收集 ──────────────────────────────────
-    print(f"[2/4] DP resource collection...")
-    max_gold, path_walk, dp_snaps = collect_resources_snapshots(maze)
-    print(f"      Max gold = {max_gold}")
+    for key, (label, gen_func) in ALGORITHMS.items():
+        print(f"\n{'='*50}")
+        print(f"  {label} ({key})")
+        print(f"{'='*50}")
 
-    animate_dp_collection(dp_snaps, os.path.join(output_dir, 'dp_collection.gif'),
-                          interval=100, title=f'DP Value={max_gold}')
-    draw_dp_path(maze, path_walk, title=f'DP Value={max_gold}',
-                 save_path=os.path.join(output_dir, 'dp_optimal_path.png'))
+        maze = Maze(n)
 
-    # ── 3. BOSS 战 ──────────────────────────────────────
-    print(f"[3/4] BOSS fight (branch & bound)...")
-    boss_hps = [60, 80]                     # 2 个 BOSS 血量
-    skills = [(5, 0), (10, 2), (15, 4)]     # (伤害,冷却)
-    max_limit = 25                          # 限定回合数
-    coin_per_revive = 5                     # 每次复活消耗 5 金币
+        # ── 生成 + 动画 ──
+        print(f"  Generating {n}x{n} maze...")
+        snapshots = capture_snapshots_from_generator(maze, gen_func, sample_rate=1)
+        gif_path = os.path.join(output_dir, f'{key}.gif')
+        animate_generation(snapshots, gif_path, interval=80,
+                           title=f'{label}  {n}x{n}')
+        draw_maze(maze, title=f'{label} ({n}x{n})',
+                  save_path=os.path.join(output_dir, f'{key}_final.png'))
 
-    bf = boss_fight_branch_bound(boss_hps, skills,
-                                  max_rounds=max_limit,
-                                  coin_per_revive=coin_per_revive)
+        # ── DP 收集 ──
+        print(f"  DP...")
+        max_gold, path_walk, dp_snaps = collect_resources_snapshots(maze)
+        print(f"    Max gold = {max_gold}")
 
-    print(f"      Min rounds    = {bf['minRounds']}")
-    print(f"      Skill seq     = {bf['sequence']}")
-    print(f"      Coin/revive   = {bf['CoinConsumption']}")
+        animate_dp_collection(dp_snaps,
+                              os.path.join(output_dir, f'{key}_dp.gif'),
+                              interval=100,
+                              title=f'DP {label} value={max_gold}')
+        draw_dp_path(maze, path_walk,
+                     title=f'DP {label} value={max_gold}',
+                     save_path=os.path.join(output_dir, f'{key}_dp.png'))
 
-    # 判断是否 GAME OVER
-    if bf.get("resurrections_needed"):
-        needed = bf["resurrections_needed"]
-        total_cost = bf["total_coin_cost"]
-        can_afford = max_gold >= total_cost
-        bf["canAfford"] = can_afford
-        bf["gameOver"] = not can_afford
-        print(f"      Resurrections = {needed} (cost {total_cost} gold, have {max_gold})")
-        print(f"      STATUS: {'Survive' if can_afford else 'GAME OVER'}")
-    else:
-        bf["gameOver"] = False
-        bf["canAfford"] = True
-        bf["resurrections_needed"] = 0
-        bf["total_coin_cost"] = 0
-        print(f"      STATUS: No resurrection needed")
+        # ── BOSS 战 ──
+        boss_hps = [60, 80]
+        skills = [(5, 0), (10, 2), (15, 4)]
+        bf = boss_fight_branch_bound(boss_hps, skills,
+                                      max_rounds=25, coin_per_revive=5)
+        print(f"    Min rounds = {bf['minRounds']}")
 
-    # ── 4. JSON 输出 ────────────────────────────────────
-    print(f"[4/4] Exporting JSON...")
-    output = {
-        "maze": maze.to_json_matrix(),
-        "B": boss_hps,
-        "PlayerSkills": [list(s) for s in skills],
-        "minRounds": bf["minRounds"],
-        "CoinConsumption": bf["CoinConsumption"],
-        "sequence": bf["sequence"],
-        "maxRoundsLimit": max_limit,
-        "resurrectionsNeeded": bf.get("resurrections_needed", 0),
-        "totalCoinCost": bf.get("total_coin_cost", 0),
-        "dpMaxGold": max_gold,
-        "gameOver": bf.get("gameOver", False),
+        results.append({
+            "algorithm": label,
+            "key": key,
+            "maze": maze.to_json_matrix(),
+            "dpMaxGold": max_gold,
+            "dpPathLength": len(path_walk),
+            "bossMinRounds": bf["minRounds"],
+            "bossSequence": bf["sequence"],
+            "bossCoinPerRevive": bf["CoinConsumption"],
+        })
+
+    # ── 汇总 JSON ──
+    compare = {
+        "mazeSize": n,
+        "bosses": [60, 80],
+        "skills": [[5, 0], [10, 2], [15, 4]],
+        "results": results,
     }
-
-    json_path = os.path.join(output_dir, 'result.json')
+    json_path = os.path.join(output_dir, 'compare.json')
     with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    print(f"      JSON -> {json_path}")
+        json.dump(compare, f, ensure_ascii=False, indent=2)
+
+    print(f"\n  Compare JSON -> {json_path}")
     print("Done!")
 
 
