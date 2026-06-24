@@ -47,3 +47,10 @@ class Maze:
 
     def get_cell(self,x,y) -> int:
         return self.maze[x][y]
+
+    def to_json_matrix(self):
+        """转换为 JSON 输出格式的字符矩阵"""
+        SYMBOL = {WALL: '#', PATH: ' ', START: 'S', END: 'E',
+                  COIN: 'G', TRAP: 'T', BOSS: 'B'}
+        return [[SYMBOL.get(self.maze[i][j], '?')
+                 for j in range(self.n)] for i in range(self.n)]
