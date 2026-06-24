@@ -126,3 +126,58 @@ def _count_walkable_neighbors(maze, pos):
             if maze.get_cell(nx, ny) != MAZE.WALL:
                 count += 1
     return count
+
+
+def analyze_maze(maze):
+    """分析迷宫复杂度指标，返回 dict
+
+    包含:
+        dead_ends:       死胡同数量（度数=1 的可走格）
+        avg_branching:   平均分支度（发散的岔路口数/可走格）
+        path_length:     起点→终点的 BFS 距离
+        max_depth:       起点出发的最大 BFS 深度
+        walkable_count:  可走格子总数
+    """
+    from collections import deque
+    grid = maze.maze
+    n = maze.n
+    start = getattr(maze, 'start', (1, 1))
+    end = getattr(maze, 'end', start)
+
+    # 收集所有可走格子
+    WALK = {MAZE.PATH, MAZE.START, MAZE.END, MAZE.COIN, MAZE.TRAP, MAZE.BOSS}
+    walkable = [(i, j) for i in range(n) for j in range(n)
+                if grid[i][j] in WALK]
+
+    # 死胡同 = 邻居数 = 1
+    dead_ends = sum(1 for pos in walkable
+                    if _count_walkable_neighbors(maze, pos) == 1)
+
+    # 平均分支度：有 >2 邻居的格平均多出几个邻居
+    branches = [_count_walkable_neighbors(maze, p) - 1 for p in walkable
+                if _count_walkable_neighbors(maze, p) > 1]
+    avg_branch = round(sum(branches) / len(branches), 2) if branches else 0
+
+    # BFS 深度和路径长度
+    dist = {start: 0}
+    queue = deque([start])
+    max_depth = 0
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in MAZE.DIRECTIONS:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < n and 0 <= ny < n and grid[nx][ny] in WALK and (nx, ny) not in dist:
+                dist[(nx, ny)] = dist[(x, y)] + 1
+                queue.append((nx, ny))
+                if dist[(nx, ny)] > max_depth:
+                    max_depth = dist[(nx, ny)]
+
+    path_length = dist.get(end, -1)
+
+    return {
+        "deadEnds": dead_ends,
+        "avgBranching": avg_branch,
+        "pathLength": path_length,
+        "maxDepth": max_depth,
+        "walkableCount": len(walkable),
+    }
