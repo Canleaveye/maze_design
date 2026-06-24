@@ -39,20 +39,15 @@ def is_connected(maze):
 
 
 # 在迷宫通路格子上随机放置资源（金币、陷阱、BOSS）
+# v2: 偏向深度分布 —— 金币在深处，陷阱在中层，BOSS 在最深死路
 def place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=1):
     """
-    在已有 PATH 格子上放置资源（应在 set_start/set_end 之后调用）
-
-    参数:
-        maze:        Maze 对象
-        coin_ratio:  金币占通路格比例 (默认 25%)
-        trap_ratio:  陷阱占通路格比例 (默认 8%)
-        boss_count:  BOSS 数量 (默认 1)
+    应有 PATH 格子上放置资源（应在 set_start/set_end 之后调用）
+    按 BFS 深度加权，让金币集中在迷宫深处（引人深入），陷阱偏中段。
     """
     import random as _random
     n = maze.n
 
-    # 收集所有 PATH 格子（START/END 已不是 PATH，自动排除）
     path_cells = []
     for i in range(n):
         for j in range(n):
@@ -63,31 +58,71 @@ def place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=1):
     if total == 0:
         return
 
-    _random.shuffle(path_cells)
+    # 计算每个通路格的 BFS 深度（从起点出发）
+    start = getattr(maze, 'start', (1, 1))
+    depth = _compute_depths(maze, start, path_cells)
+
+    # 按深度降序排列（深处的优先）
+    path_cells.sort(key=lambda p: depth.get(p, 0), reverse=True)
 
     coin_count = max(1, int(total * coin_ratio))
     trap_count = max(1, int(total * trap_ratio))
-    idx = 0
 
-    for _ in range(coin_count):
-        if idx >= len(path_cells):
-            break
-        x, y = path_cells[idx]
+    # 金币：从最深往前取（深度越深概率越高）
+    coin_pool = path_cells[:int(total * 0.7)]  # 取前 70% 深度最大者
+    _random.shuffle(coin_pool)
+    for k in range(min(coin_count, len(coin_pool))):
+        x, y = coin_pool[k]
         maze.set_cell(x, y, MAZE.COIN)
-        idx += 1
 
-    for _ in range(trap_count):
-        if idx >= len(path_cells):
-            break
-        x, y = path_cells[idx]
+    # 陷阱：从中层取（避免开头和深末）
+    start_mid = max(1, total // 4)
+    end_mid = total - total // 4
+    trap_pool = path_cells[start_mid:end_mid]
+    _random.shuffle(trap_pool)
+    for k in range(min(trap_count, len(trap_pool))):
+        x, y = trap_pool[k]
         maze.set_cell(x, y, MAZE.TRAP)
-        idx += 1
 
-    boss_candidates = path_cells[idx:]
-    if boss_candidates and boss_count > 0:
-        boss_candidates.sort(
-            key=lambda p: abs(p[0] - 1) + abs(p[1] - 1), reverse=True
-        )
-        for k in range(min(boss_count, len(boss_candidates))):
-            x, y = boss_candidates[k]
+    # BOSS：最深区的死胡同叶子节点
+    # 在已放置 coin/trap 后，找剩余最深叶子
+    remaining = [p for p in path_cells
+                 if maze.get_cell(p[0], p[1]) == MAZE.PATH]
+    if remaining and boss_count > 0:
+        # 叶子 = 只有 1 个 walkable 邻居
+        leaves = [_ for _ in remaining if _count_walkable_neighbors(maze, _) == 1]
+        if not leaves:
+            leaves = remaining
+        leaves.sort(key=lambda p: depth.get(p, 0), reverse=True)
+        for k in range(min(boss_count, len(leaves))):
+            x, y = leaves[k]
             maze.set_cell(x, y, MAZE.BOSS)
+
+
+def _compute_depths(maze, start, cells):
+    """BFS 计算所有通路格相对起点的深度"""
+    from collections import deque
+    depth = {}
+    queue = deque([start])
+    depth[start] = 0
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in MAZE.DIRECTIONS:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < maze.n and 0 <= ny < maze.n:
+                if maze.get_cell(nx, ny) != MAZE.WALL and (nx, ny) not in depth:
+                    depth[(nx, ny)] = depth[(x, y)] + 1
+                    queue.append((nx, ny))
+    return depth
+
+
+def _count_walkable_neighbors(maze, pos):
+    """统计某格子的可走邻居数"""
+    x, y = pos
+    count = 0
+    for dx, dy in MAZE.DIRECTIONS:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < maze.n and 0 <= ny < maze.n:
+            if maze.get_cell(nx, ny) != MAZE.WALL:
+                count += 1
+    return count

@@ -40,6 +40,7 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
             if 1 <= nx <= max_room and 1 <= ny <= max_room:
                 if (nx, ny) not in visited:
                     neighbors.append((nx, ny))
+                    
 
         if neighbors:
             nx, ny = random.choice(neighbors)

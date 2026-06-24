@@ -123,13 +123,109 @@ def capture_snapshots_from_generator(maze, generate_func, sample_rate=1):
 
     def on_step(m, cx, cy):
         if len(snapshots) % sample_rate == 0:
-            # 深拷贝当前网格
             grid_copy = [row[:] for row in m.maze]
             snapshots.append((grid_copy, (cx, cy)))
 
     generate_func(maze, on_step=on_step)
-    # 最终帧多停留几帧让资源信息清晰可见
     final_grid = [row[:] for row in maze.maze]
     for _ in range(5):
         snapshots.append((final_grid, None))
     return snapshots
+
+
+def draw_dp_path(maze, path_walk, title=None, save_path=None):
+    """绘制 DP 最优资源收集路径
+
+    参数:
+        maze:     Maze 对象
+        path_walk: collect_resources 返回的路径序列
+        title:    图片标题
+        save_path: 保存路径
+    """
+    grid = maze.maze
+    n = len(grid)
+    path_set = set(path_walk)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # 画迷宫底色
+    img = np.ones((n, n, 3))
+    for i in range(n):
+        for j in range(n):
+            val = grid[i][j]
+            color_hex = COLORMAP.get(val, '#000000')
+            r = int(color_hex[1:3], 16) / 255.0
+            g = int(color_hex[3:5], 16) / 255.0
+            b = int(color_hex[5:7], 16) / 255.0
+            img[i, j] = [r, g, b]
+
+    ax.imshow(img, interpolation='nearest')
+
+    # 在走过的路径上画半透明青色标记
+    for x, y in path_set:
+        if grid[x][y] not in {START, END}:
+            rect = plt.Rectangle((y - 0.5, x - 0.5), 1, 1,
+                                 facecolor='#00bcd4', alpha=0.4, linewidth=0)
+            ax.add_patch(rect)
+
+    # 画路径连线
+    px, py = zip(*path_walk)
+    ax.plot([y for y in py], [x for x in px], color='#ffeb3b',
+            linewidth=2, alpha=0.8, zorder=3)
+
+    if title:
+        ax.set_title(title, fontsize=14)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=100, bbox_inches='tight')
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+def animate_dp_collection(snapshots, output_path='dp_collection.gif',
+                          interval=100, title='DP Process'):
+    if not snapshots:
+        raise ValueError("snapshots empty")
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    def update(frame):
+        ax.clear()
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f'{title}  ({frame + 1}/{len(snapshots)})', fontsize=14)
+
+        grid, walk_set, current = snapshots[frame]
+        n = len(grid)
+        img = np.ones((n, n, 3))
+
+        for i in range(n):
+            for j in range(n):
+                val = grid[i][j]
+                color_hex = COLORMAP.get(val, '#000000')
+                r = int(color_hex[1:3], 16) / 255.0
+                g = int(color_hex[3:5], 16) / 255.0
+                b = int(color_hex[5:7], 16) / 255.0
+                if (i, j) in walk_set and val in {PATH, START, END}:
+                    img[i, j] = [0.0, 0.74, 0.83]
+                else:
+                    img[i, j] = [r, g, b]
+
+        ax.imshow(img, interpolation='nearest')
+
+        if current is not None:
+            cx, cy = current
+            if 0 <= cx < n and 0 <= cy < n:
+                rect = plt.Rectangle((cy - 0.5, cx - 0.5), 1, 1,
+                                     facecolor='#ffeb3b', alpha=0.9,
+                                     linewidth=2, edgecolor='#ff6f00')
+                ax.add_patch(rect)
+
+    ani = animation.FuncAnimation(fig, update, frames=len(snapshots),
+                                   interval=interval, repeat=True)
+    ani.save(output_path, writer='pillow', dpi=80)
+    plt.close(fig)
+    print(f"DP : {output_path} ({len(snapshots)} )")
