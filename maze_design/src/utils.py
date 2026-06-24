@@ -40,7 +40,7 @@ def is_connected(maze):
 
 # 在迷宫通路格子上随机放置资源（金币、陷阱、BOSS）
 # v2: 偏向深度分布 —— 金币在深处，陷阱在中层，BOSS 在最深死路
-def place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=1):
+def place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=2):
     """
     应有 PATH 格子上放置资源（应在 set_start/set_end 之后调用）
     按 BFS 深度加权，让金币集中在迷宫深处（引人深入），陷阱偏中段。

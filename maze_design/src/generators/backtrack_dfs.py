@@ -40,7 +40,7 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
             if 1 <= nx <= max_room and 1 <= ny <= max_room:
                 if (nx, ny) not in visited:
                     neighbors.append((nx, ny))
-                    
+
 
         if neighbors:
             nx, ny = random.choice(neighbors)
@@ -63,7 +63,7 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
     # ——— 先设起点终点，再放资源（避免 BOSS 被覆盖）
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
-    place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=1)
+    place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=2)
 
     if on_step:
         on_step(maze, endx, endy)
