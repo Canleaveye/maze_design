@@ -181,3 +181,93 @@ def analyze_maze(maze):
         "maxDepth": max_depth,
         "walkableCount": len(walkable),
     }
+
+
+def place_resources_greedy_challenge(maze):
+    """贪心 AI 挑战版资源放置 —— 诱饵 + 陷阱守门 + 深层金矿
+
+    设计理念：
+      - 诱饵金币放在岔路浅层（贪心 3×3 可见 → 被骗进分支）
+      - 陷阱守门挡住好分支（贪心避开 → 丢掉深层金币簇）
+      - 深层金矿簇藏于分支末端（只有 DP 全局视野能规划到）
+      - BOSS 放在最深死路
+    """
+    import random as _random
+    n = maze.n
+    start = getattr(maze, 'start', (1, 1))
+    end = getattr(maze, 'end', start)
+
+    path_cells = []
+    for i in range(n):
+        for j in range(n):
+            if maze.get_cell(i, j) == MAZE.PATH:
+                path_cells.append((i, j))
+
+    total = len(path_cells)
+    if total == 0:
+        return
+
+    # BFS 深度
+    depth = _compute_depths(maze, start, path_cells)
+    max_d = max(depth.values()) if depth else 1
+
+    # 按深度分三层
+    shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
+    mid     = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
+    deep    = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
+
+    _random.shuffle(shallow)
+    _random.shuffle(mid)
+    _random.shuffle(deep)
+
+    # 计算分支节点（度数>2）→ 放诱饵和陷阱
+    junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
+    dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
+
+    placed = set()
+
+    # === 诱饵金币（中浅层，歧路入口）=== 贪心能看见，被引诱进分支
+    bait_count = max(3, total // 12)
+    for p in mid + shallow:
+        if len(placed) >= bait_count:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.COIN)
+            placed.add(p)
+
+    # === 陷阱守门（歧路口）=== 贪心避开 → 错过深层金币
+    trap_count = max(2, total // 18)
+    junc_shuffled = junctions[:]
+    _random.shuffle(junc_shuffled)
+    for p in junc_shuffled:
+        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.TRAP]) >= trap_count:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.TRAP)
+            placed.add(p)
+
+    # === 深层金币簇（分支末端）=== 只有 DP 能规划到
+    cluster_count = max(6, total // 7)
+    for p in deep:
+        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.COIN]) >= bait_count + cluster_count:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.COIN)
+            placed.add(p)
+
+    # === 额外陷阱（深层混入，增加风险）===
+    extra_traps = max(2, total // 20)
+    for p in deep:
+        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.TRAP]) >= trap_count + extra_traps:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.TRAP)
+            placed.add(p)
+
+    # === BOSS（最深死胡同）===
+    if dead_ends:
+        dead_ends_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
+        for k in range(min(2, len(dead_ends_sorted))):
+            p = dead_ends_sorted[k]
+            maze.set_cell(p[0], p[1], MAZE.BOSS)
+            placed.add(p)

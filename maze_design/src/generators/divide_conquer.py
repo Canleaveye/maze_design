@@ -3,7 +3,7 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources
+from utils import place_resources_greedy_challenge
 from collections import deque
 
 
@@ -126,7 +126,7 @@ def generate_maze_divide_conquer(maze, on_step=None):
     endx, endy = _find_furthest_cell(maze, (startx, starty))
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
-    place_resources(maze)
+    place_resources_greedy_challenge(maze)
 
     if on_step:
         on_step(maze, endx, endy)
