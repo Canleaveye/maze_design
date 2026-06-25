@@ -3,7 +3,7 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources_greedy_challenge
+from utils import place_resources
 from collections import deque
 
 
@@ -107,7 +107,7 @@ def generate_maze_greedy(maze, on_step=None):
 
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
-    place_resources_greedy_challenge(maze)
+    place_resources(maze)
 
     if on_step:
         on_step(maze, endx, endy)

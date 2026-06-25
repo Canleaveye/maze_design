@@ -4,7 +4,7 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources_greedy_challenge
+from utils import place_resources
 
 
 def generate_maze_backtrack_dfs(maze, on_step=None):
@@ -63,7 +63,7 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
     # ——— 先设起点终点，再放资源（避免 BOSS 被覆盖）
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
-    place_resources_greedy_challenge(maze)
+    place_resources(maze)
 
     if on_step:
         on_step(maze, endx, endy)

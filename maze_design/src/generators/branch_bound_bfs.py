@@ -4,7 +4,7 @@
 import random
 from collections import deque
 from maze import WALL, PATH, START, END
-from utils import place_resources_greedy_challenge
+from utils import place_resources
 
 
 def _find_furthest_cell(maze, start):
@@ -87,7 +87,7 @@ def generate_maze_branch_bound_bfs(maze, on_step=None):
 
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
-    place_resources_greedy_challenge(maze)
+    place_resources(maze)
 
     if on_step:
         on_step(maze, endx, endy)

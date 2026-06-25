@@ -2,10 +2,12 @@
 
 import maze as MAZE
 from collections import deque
+import random as _random
 
-# 检查迷宫是否连通函数
+
+# ── 连通性校验 ────────────────────────────────────────
+
 def is_connected(maze):
-    # 这里用广度优先的思想
     queue = deque()
     visited = set()
     found = False
@@ -13,95 +15,30 @@ def is_connected(maze):
         if found:
             break
         for j in range(len(maze[0])):
-            # 将迷宫格子加入队列
             if maze[i][j] == MAZE.PATH:
-                queue.append((i,j))
-                visited.add((i,j))
+                queue.append((i, j))
+                visited.add((i, j))
                 found = True
                 break
     while queue:
-        x,y = queue.popleft()
-        for dx,dy in MAZE.DIRECTIONS:
-            nx = x + dx
-            ny = y + dy
-            if nx >=0 and nx < len(maze) and ny >=0 and ny < len(maze[0]) \
-                and maze[nx][ny] == MAZE.PATH:
-                if (nx,ny) not in visited:
-                    visited.add((nx,ny))
-                    queue.append((nx,ny))
-
-    # 检查是否所有的路径格子都被访问过
+        x, y = queue.popleft()
+        for dx, dy in MAZE.DIRECTIONS:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < len(maze) and 0 <= ny < len(maze[0]) \
+                    and maze[nx][ny] == MAZE.PATH:
+                if (nx, ny) not in visited:
+                    visited.add((nx, ny))
+                    queue.append((nx, ny))
     for i in range(len(maze)):
         for j in range(len(maze[0])):
-            if maze[i][j] == MAZE.PATH and (i,j) not in visited:
+            if maze[i][j] == MAZE.PATH and (i, j) not in visited:
                 return False
     return True
 
 
-# 在迷宫通路格子上随机放置资源（金币、陷阱、BOSS）
-# v2: 偏向深度分布 —— 金币在深处，陷阱在中层，BOSS 在最深死路
-def place_resources(maze, coin_ratio=0.25, trap_ratio=0.08, boss_count=2):
-    """
-    应有 PATH 格子上放置资源（应在 set_start/set_end 之后调用）
-    按 BFS 深度加权，让金币集中在迷宫深处（引人深入），陷阱偏中段。
-    """
-    import random as _random
-    n = maze.n
-
-    path_cells = []
-    for i in range(n):
-        for j in range(n):
-            if maze.get_cell(i, j) == MAZE.PATH:
-                path_cells.append((i, j))
-
-    total = len(path_cells)
-    if total == 0:
-        return
-
-    # 计算每个通路格的 BFS 深度（从起点出发）
-    start = getattr(maze, 'start', (1, 1))
-    depth = _compute_depths(maze, start, path_cells)
-
-    # 按深度降序排列（深处的优先）
-    path_cells.sort(key=lambda p: depth.get(p, 0), reverse=True)
-
-    coin_count = max(1, int(total * coin_ratio))
-    trap_count = max(1, int(total * trap_ratio))
-
-    # 金币：从最深往前取（深度越深概率越高）
-    coin_pool = path_cells[:int(total * 0.7)]  # 取前 70% 深度最大者
-    _random.shuffle(coin_pool)
-    for k in range(min(coin_count, len(coin_pool))):
-        x, y = coin_pool[k]
-        maze.set_cell(x, y, MAZE.COIN)
-
-    # 陷阱：从中层取（避免开头和深末）
-    start_mid = max(1, total // 4)
-    end_mid = total - total // 4
-    trap_pool = path_cells[start_mid:end_mid]
-    _random.shuffle(trap_pool)
-    for k in range(min(trap_count, len(trap_pool))):
-        x, y = trap_pool[k]
-        maze.set_cell(x, y, MAZE.TRAP)
-
-    # BOSS：最深区的死胡同叶子节点
-    # 在已放置 coin/trap 后，找剩余最深叶子
-    remaining = [p for p in path_cells
-                 if maze.get_cell(p[0], p[1]) == MAZE.PATH]
-    if remaining and boss_count > 0:
-        # 叶子 = 只有 1 个 walkable 邻居
-        leaves = [_ for _ in remaining if _count_walkable_neighbors(maze, _) == 1]
-        if not leaves:
-            leaves = remaining
-        leaves.sort(key=lambda p: depth.get(p, 0), reverse=True)
-        for k in range(min(boss_count, len(leaves))):
-            x, y = leaves[k]
-            maze.set_cell(x, y, MAZE.BOSS)
-
+# ── 内部工具函数 ──────────────────────────────────────
 
 def _compute_depths(maze, start, cells):
-    """BFS 计算所有通路格相对起点的深度"""
-    from collections import deque
     depth = {}
     queue = deque([start])
     depth[start] = 0
@@ -117,7 +54,6 @@ def _compute_depths(maze, start, cells):
 
 
 def _count_walkable_neighbors(maze, pos):
-    """统计某格子的可走邻居数"""
     x, y = pos
     count = 0
     for dx, dy in MAZE.DIRECTIONS:
@@ -128,37 +64,145 @@ def _count_walkable_neighbors(maze, pos):
     return count
 
 
-def analyze_maze(maze):
-    """分析迷宫复杂度指标，返回 dict
+def _find_spine(maze, start, end, path_cells):
+    """BFS 找起点→终点主干路径"""
+    path_set = set(path_cells)
+    parent = {}
+    queue = deque([start])
+    parent[start] = None
+    while queue:
+        u = queue.popleft()
+        x, y = u
+        for dx, dy in MAZE.DIRECTIONS:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) in path_set and (nx, ny) not in parent:
+                parent[(nx, ny)] = u
+                if (nx, ny) == end:
+                    spine = [end]
+                    node = end
+                    while parent[node] is not None:
+                        node = parent[node]
+                        spine.append(node)
+                    return spine
+                queue.append((nx, ny))
+    return []
 
-    包含:
-        dead_ends:       死胡同数量（度数=1 的可走格）
-        avg_branching:   平均分支度（发散的岔路口数/可走格）
-        path_length:     起点→终点的 BFS 距离
-        max_depth:       起点出发的最大 BFS 深度
-        walkable_count:  可走格子总数
-    """
-    from collections import deque
-    grid = maze.maze
+
+# ── 资源放置（贪心挑战版）─────────────────────────────
+
+def place_resources(maze):
+    """在通路上放置资源（4 金币 + 5 陷阱 + 1 BOSS）
+       陷阱分层：主干 2 + 歧路 2 + 深层 1"""
     n = maze.n
     start = getattr(maze, 'start', (1, 1))
     end = getattr(maze, 'end', start)
 
-    # 收集所有可走格子
+    path_cells = []
+    for i in range(n):
+        for j in range(n):
+            if maze.get_cell(i, j) == MAZE.PATH:
+                path_cells.append((i, j))
+    total = len(path_cells)
+    if total == 0:
+        return
+
+    depth = _compute_depths(maze, start, path_cells)
+    max_d = max(depth.values()) if depth else 1
+
+    shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
+    mid = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
+    deep = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
+    junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
+    dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
+    spine = _find_spine(maze, start, end, path_cells)
+
+    _random.shuffle(shallow)
+    _random.shuffle(mid)
+    _random.shuffle(deep)
+
+    placed = set()
+    coin_cnt = 0
+    trap_cnt = 0
+    boss_cnt = 0
+
+    MAX_COINS = 4
+    MAX_TRAPS = 5
+    MAX_BOSS = 1
+
+    # 诱饵金币（浅中层）
+    for p in mid + shallow:
+        if coin_cnt >= MAX_COINS // 2:
+            break
+        maze.set_cell(p[0], p[1], MAZE.COIN)
+        coin_cnt += 1
+        placed.add(p)
+
+    # 陷阱 — 主干（2个，必经）
+    _random.shuffle(spine)
+    for p in spine:
+        if trap_cnt >= 2:
+            break
+        if p not in placed and p != start and p != end:
+            maze.set_cell(p[0], p[1], MAZE.TRAP)
+            trap_cnt += 1
+            placed.add(p)
+
+    # 陷阱 — 歧路（2个，可绕）
+    junc_shuffled = junctions[:]
+    _random.shuffle(junc_shuffled)
+    for p in junc_shuffled:
+        if trap_cnt >= 4:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.TRAP)
+            trap_cnt += 1
+            placed.add(p)
+
+    # 陷阱 — 深层（1个，惩罚深入）
+    deep_shuffled = deep[:]
+    _random.shuffle(deep_shuffled)
+    for p in deep_shuffled:
+        if trap_cnt >= MAX_TRAPS:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.TRAP)
+            trap_cnt += 1
+            placed.add(p)
+
+    # 深层金币（分支末端）
+    for p in deep:
+        if coin_cnt >= MAX_COINS:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.COIN)
+            coin_cnt += 1
+            placed.add(p)
+
+    # BOSS（最深死胡同）
+    if dead_ends:
+        dead_ends_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
+        for p in dead_ends_sorted:
+            if boss_cnt >= MAX_BOSS:
+                break
+            maze.set_cell(p[0], p[1], MAZE.BOSS)
+            boss_cnt += 1
+
+
+# ── 迷宫分析 ──────────────────────────────────────────
+
+def analyze_maze(maze):
+    grid = maze.maze
+    n = maze.n
+    start = getattr(maze, 'start', (1, 1))
+    end = getattr(maze, 'end', start)
     WALK = {MAZE.PATH, MAZE.START, MAZE.END, MAZE.COIN, MAZE.TRAP, MAZE.BOSS}
-    walkable = [(i, j) for i in range(n) for j in range(n)
-                if grid[i][j] in WALK]
 
-    # 死胡同 = 邻居数 = 1
-    dead_ends = sum(1 for pos in walkable
-                    if _count_walkable_neighbors(maze, pos) == 1)
-
-    # 平均分支度：有 >2 邻居的格平均多出几个邻居
+    walkable = [(i, j) for i in range(n) for j in range(n) if grid[i][j] in WALK]
+    dead_ends = sum(1 for p in walkable if _count_walkable_neighbors(maze, p) == 1)
     branches = [_count_walkable_neighbors(maze, p) - 1 for p in walkable
                 if _count_walkable_neighbors(maze, p) > 1]
     avg_branch = round(sum(branches) / len(branches), 2) if branches else 0
 
-    # BFS 深度和路径长度
     dist = {start: 0}
     queue = deque([start])
     max_depth = 0
@@ -171,7 +215,6 @@ def analyze_maze(maze):
                 queue.append((nx, ny))
                 if dist[(nx, ny)] > max_depth:
                     max_depth = dist[(nx, ny)]
-
     path_length = dist.get(end, -1)
 
     return {
@@ -181,93 +224,3 @@ def analyze_maze(maze):
         "maxDepth": max_depth,
         "walkableCount": len(walkable),
     }
-
-
-def place_resources_greedy_challenge(maze):
-    """贪心 AI 挑战版资源放置 —— 诱饵 + 陷阱守门 + 深层金矿
-
-    设计理念：
-      - 诱饵金币放在岔路浅层（贪心 3×3 可见 → 被骗进分支）
-      - 陷阱守门挡住好分支（贪心避开 → 丢掉深层金币簇）
-      - 深层金矿簇藏于分支末端（只有 DP 全局视野能规划到）
-      - BOSS 放在最深死路
-    """
-    import random as _random
-    n = maze.n
-    start = getattr(maze, 'start', (1, 1))
-    end = getattr(maze, 'end', start)
-
-    path_cells = []
-    for i in range(n):
-        for j in range(n):
-            if maze.get_cell(i, j) == MAZE.PATH:
-                path_cells.append((i, j))
-
-    total = len(path_cells)
-    if total == 0:
-        return
-
-    # BFS 深度
-    depth = _compute_depths(maze, start, path_cells)
-    max_d = max(depth.values()) if depth else 1
-
-    # 按深度分三层
-    shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
-    mid     = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
-    deep    = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
-
-    _random.shuffle(shallow)
-    _random.shuffle(mid)
-    _random.shuffle(deep)
-
-    # 计算分支节点（度数>2）→ 放诱饵和陷阱
-    junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
-    dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
-
-    placed = set()
-
-    # === 诱饵金币（中浅层，歧路入口）=== 贪心能看见，被引诱进分支
-    bait_count = max(3, total // 12)
-    for p in mid + shallow:
-        if len(placed) >= bait_count:
-            break
-        if p not in placed:
-            maze.set_cell(p[0], p[1], MAZE.COIN)
-            placed.add(p)
-
-    # === 陷阱守门（歧路口）=== 贪心避开 → 错过深层金币
-    trap_count = max(2, total // 18)
-    junc_shuffled = junctions[:]
-    _random.shuffle(junc_shuffled)
-    for p in junc_shuffled:
-        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.TRAP]) >= trap_count:
-            break
-        if p not in placed:
-            maze.set_cell(p[0], p[1], MAZE.TRAP)
-            placed.add(p)
-
-    # === 深层金币簇（分支末端）=== 只有 DP 能规划到
-    cluster_count = max(6, total // 7)
-    for p in deep:
-        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.COIN]) >= bait_count + cluster_count:
-            break
-        if p not in placed:
-            maze.set_cell(p[0], p[1], MAZE.COIN)
-            placed.add(p)
-
-    # === 额外陷阱（深层混入，增加风险）===
-    extra_traps = max(2, total // 20)
-    for p in deep:
-        if len([x for x in placed if maze.get_cell(x[0], x[1]) == MAZE.TRAP]) >= trap_count + extra_traps:
-            break
-        if p not in placed:
-            maze.set_cell(p[0], p[1], MAZE.TRAP)
-            placed.add(p)
-
-    # === BOSS（最深死胡同）===
-    if dead_ends:
-        dead_ends_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
-        for k in range(min(2, len(dead_ends_sorted))):
-            p = dead_ends_sorted[k]
-            maze.set_cell(p[0], p[1], MAZE.BOSS)
-            placed.add(p)
