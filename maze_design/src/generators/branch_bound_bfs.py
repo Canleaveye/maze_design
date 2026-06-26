@@ -4,7 +4,7 @@
 import random
 from collections import deque
 from maze import WALL, PATH, START, END
-from utils import place_resources, _pick_edge_positions
+from utils import place_resources, pick_edge_positions
 
 
 def generate_maze_branch_bound_bfs(maze, on_step=None):
@@ -62,7 +62,7 @@ def generate_maze_branch_bound_bfs(maze, on_step=None):
             if maze.get_cell(max_room, i) == PATH:
                 maze.set_cell(max_room + 1, i, PATH)
 
-    (startx, starty), (endx, endy) = _pick_edge_positions(maze)
+    (startx, starty), (endx, endy) = pick_edge_positions(maze)
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
     place_resources(maze)

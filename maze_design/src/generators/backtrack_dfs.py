@@ -4,7 +4,7 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources, _pick_edge_positions
+from utils import place_resources, pick_edge_positions
 
 
 def generate_maze_backtrack_dfs(maze, on_step=None):
@@ -57,7 +57,7 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
                 maze.set_cell(max_room + 1, i, PATH)
 
     # 起点终点放在边缘（模拟进出迷宫）
-    (startx, starty), (endx, endy) = _pick_edge_positions(maze)
+    (startx, starty), (endx, endy) = pick_edge_positions(maze)
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
     place_resources(maze)

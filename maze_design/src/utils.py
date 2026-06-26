@@ -93,7 +93,7 @@ def _find_spine(maze, start, end):
     return []
 
 
-def _pick_edge_positions(maze):
+def pick_edge_positions(maze):
     """找起点和终点的边缘位置（模拟从外面进出迷宫）
     返回 (start_pos, end_pos)"""
     import random as _rnd
@@ -181,7 +181,7 @@ def place_resources(maze):
         MAX_TRAPS = max(16, room_count // 4)
     MAX_BOSS = 1
 
-    # bait coins: only in mid layer (30%~65% depth), lures greedy AI
+    # 在中浅层放一半金币
     for p in mid:
         if coin_cnt >= MAX_COINS // 2:
             break
@@ -189,7 +189,7 @@ def place_resources(maze):
         coin_cnt += 1
         placed.add(p)
 
-    # spine traps (unavoidable, but limited)
+    # 在主干道上放适当数量的陷阱
     _spine_trap_count = min(2, MAX_TRAPS // 3)
     _random.shuffle(spine)
     for p in spine:
@@ -200,8 +200,8 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # junction traps (avoidable, fill most of remaining)
-    _junction_trap_count = MAX_TRAPS - 1  # leave at least 1 for deep
+    # 分支路上的陷阱
+    _junction_trap_count = MAX_TRAPS - 1  
     junc_shuffled = junctions[:]
     _random.shuffle(junc_shuffled)
     for p in junc_shuffled:
@@ -212,7 +212,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # deep trap (at least 1)
+    # 深层设置陷阱
     deep_shuffled = deep[:]
     _random.shuffle(deep_shuffled)
     for p in deep_shuffled:
@@ -223,7 +223,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # deep coins (branch ends)
+    # 深层的金币放置
     for p in deep:
         if coin_cnt >= MAX_COINS:
             break
@@ -232,10 +232,11 @@ def place_resources(maze):
             coin_cnt += 1
             placed.add(p)
 
-    # BOSS: near spine (high-traffic, bypassable)
+    # BOSS放置在主干道附近的深层位置，确保挑战性
     spine_set = set(spine)
     near_spine = []
     for p in path_cells:
+        # 避免在主路径、起点、终点设置BOSS
         if p in spine_set or p == start or p == end:
             continue
         for sp in spine:
@@ -243,6 +244,7 @@ def place_resources(maze):
                 near_spine.append(p)
                 break
     _random.shuffle(near_spine)
+    # 随机放置BOSS
     for p in near_spine:
         if boss_cnt >= MAX_BOSS:
             break
