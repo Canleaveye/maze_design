@@ -179,26 +179,25 @@ def place_resources(maze):
             coin_cnt += 1
             placed.add(p)
 
-    # BOSS_1: deepest dead end (optional side challenge)
-    if dead_ends and boss_cnt < 1:
-        dd_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
-        maze.set_cell(dd_sorted[0][0], dd_sorted[0][1], MAZE.BOSS)
-        boss_cnt += 1
-        placed.add(dd_sorted[0])
-
-    # BOSS_2: spine cell near end (unavoidable final guard)
-    if spine:
-        cut = max(len(spine) // 3, 1)
-        tail_spine = spine[:cut]
-        _random.shuffle(tail_spine)
-        for p in tail_spine:
-            if boss_cnt >= MAX_BOSS:
+    # BOSSes: near spine but not on it (high-traffic branches, can be bypassed)
+    spine_set = set(spine)
+    near_spine = []
+    for p in path_cells:
+        if p in spine_set or p == start or p == end:
+            continue
+        # compute distance to nearest spine cell
+        for sp in spine:
+            if abs(p[0]-sp[0]) + abs(p[1]-sp[1]) <= 3:
+                near_spine.append(p)
                 break
-            if p != start and p != end:
-                maze.set_cell(p[0], p[1], MAZE.BOSS)
-                boss_cnt += 1
-                placed.add(p)
-                break
+    _random.shuffle(near_spine)
+    for p in near_spine:
+        if boss_cnt >= MAX_BOSS:
+            break
+        if p not in placed:
+            maze.set_cell(p[0], p[1], MAZE.BOSS)
+            boss_cnt += 1
+            placed.add(p)
 
 
 # ── 迷宫分析 ──────────────────────────────────────────
