@@ -5,8 +5,7 @@ from collections import deque
 import random as _random
 
 
-# ── 连通性校验 ────────────────────────────────────────
-
+# 验证生成的迷宫无孤立区域并存在唯一完美通路
 def is_connected(maze):
     queue = deque()
     visited = set()
@@ -36,9 +35,9 @@ def is_connected(maze):
     return True
 
 
-# ── 内部工具函数 ──────────────────────────────────────
-
-def _compute_depths(maze, start, cells):
+# 计算迷宫中每个可行走单元格距离起点的步数
+def _compute_depths(maze, start):
+    # 结果字典，键：单元格坐标，值：距离起点的步数
     depth = {}
     queue = deque([start])
     depth[start] = 0
@@ -52,7 +51,7 @@ def _compute_depths(maze, start, cells):
                     queue.append((nx, ny))
     return depth
 
-
+# 判断一个单元格的可行走邻居格子数
 def _count_walkable_neighbors(maze, pos):
     x, y = pos
     count = 0
@@ -63,11 +62,12 @@ def _count_walkable_neighbors(maze, pos):
                 count += 1
     return count
 
-
-def _find_spine(maze, start, end, path_cells):
-    """BFS find start->end spine path (includes all walkable cells)"""
+# 寻找迷宫中从起点到终点的路径，用于资源放置策略
+def _find_spine(maze, start, end):
+    # 记录迷宫中能走的单元格
     WALK = {MAZE.PATH, MAZE.START, MAZE.END}
     queue = deque([start])
+    # 每个单元格的父节点，用于回溯路径
     parent = {start: None}
     while queue:
         u = queue.popleft()
@@ -76,6 +76,8 @@ def _find_spine(maze, start, end, path_cells):
             nx, ny = x + dx, y + dy
             if 0 <= nx < maze.n and 0 <= ny < maze.n:
                 val = maze.get_cell(nx, ny)
+                """如果邻居是可走的且未被访问过，则记录父节点并加入队列
+                    不加重复的避免死循环，同时保证找到的路径是最短的"""
                 if val in WALK and (nx, ny) not in parent:
                     parent[(nx, ny)] = u
                     if (nx, ny) == end:
@@ -83,13 +85,15 @@ def _find_spine(maze, start, end, path_cells):
                         node = end
                         while parent[node] is not None:
                             node = parent[node]
+                            # 回溯路径，直到回到起点
                             spine.append(node)
                         return spine
                     queue.append((nx, ny))
+    # 没有找到路径,说明生成的迷宫不连通，返回空列表
     return []
 
 
-# ── 资源放置（固定数量：4金币 / 5陷阱 / 1BOSS）─────
+# 资源放置函数（固定数量：4金币 / 5陷阱 / 1BOSS
 
 def place_resources(maze):
     """Place 4 coins + 5 traps + 1 BOSS on PATH cells.
@@ -107,7 +111,7 @@ def place_resources(maze):
     if total == 0:
         return
 
-    depth = _compute_depths(maze, start, path_cells)
+    depth = _compute_depths(maze, start)
     max_d = max(depth.values()) if depth else 1
 
     shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
@@ -115,7 +119,7 @@ def place_resources(maze):
     deep    = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
     junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
     dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
-    spine = _find_spine(maze, start, end, path_cells)
+    spine = _find_spine(maze, start, end)
 
     _random.shuffle(shallow)
     _random.shuffle(mid)
@@ -126,9 +130,15 @@ def place_resources(maze):
     trap_cnt = 0
     boss_cnt = 0
 
-    MAX_COINS = 4
-    MAX_TRAPS = 5
-    MAX_BOSS  = 2
+    # 按迷宫规模决定资源数量
+    room_count = ((n + 1) // 2) ** 2  # 房间格数量
+    if n <= 7:
+        MAX_COINS, MAX_TRAPS = 3, 3
+    elif n <= 15:
+        MAX_COINS, MAX_TRAPS = 9, 13
+    else:
+        MAX_COINS, MAX_TRAPS = max(12, room_count // 5), max(16, room_count // 3)
+    MAX_BOSS = 1
 
     # bait coins (shallow/mid)
     for p in mid + shallow:
@@ -138,28 +148,30 @@ def place_resources(maze):
         coin_cnt += 1
         placed.add(p)
 
-    # spine traps (2, unavoidable)
+    # spine traps (unavoidable, but limited)
+    _spine_trap_count = min(2, MAX_TRAPS // 3)
     _random.shuffle(spine)
     for p in spine:
-        if trap_cnt >= 2:
+        if trap_cnt >= _spine_trap_count:
             break
         if p not in placed and p != start and p != end:
             maze.set_cell(p[0], p[1], MAZE.TRAP)
             trap_cnt += 1
             placed.add(p)
 
-    # junction traps (2, avoidable)
+    # junction traps (avoidable, fill most of remaining)
+    _junction_trap_count = MAX_TRAPS - 1  # leave at least 1 for deep
     junc_shuffled = junctions[:]
     _random.shuffle(junc_shuffled)
     for p in junc_shuffled:
-        if trap_cnt >= 4:
+        if trap_cnt >= _junction_trap_count:
             break
         if p not in placed:
             maze.set_cell(p[0], p[1], MAZE.TRAP)
             trap_cnt += 1
             placed.add(p)
 
-    # deep trap (1, punishment)
+    # deep trap (at least 1, punishment for deep exploration)
     deep_shuffled = deep[:]
     _random.shuffle(deep_shuffled)
     for p in deep_shuffled:
