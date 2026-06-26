@@ -65,34 +65,35 @@ def _count_walkable_neighbors(maze, pos):
 
 
 def _find_spine(maze, start, end, path_cells):
-    """BFS 找起点→终点主干路径"""
-    path_set = set(path_cells)
-    parent = {}
+    """BFS find start->end spine path (includes all walkable cells)"""
+    WALK = {MAZE.PATH, MAZE.START, MAZE.END}
     queue = deque([start])
-    parent[start] = None
+    parent = {start: None}
     while queue:
         u = queue.popleft()
         x, y = u
         for dx, dy in MAZE.DIRECTIONS:
             nx, ny = x + dx, y + dy
-            if (nx, ny) in path_set and (nx, ny) not in parent:
-                parent[(nx, ny)] = u
-                if (nx, ny) == end:
-                    spine = [end]
-                    node = end
-                    while parent[node] is not None:
-                        node = parent[node]
-                        spine.append(node)
-                    return spine
-                queue.append((nx, ny))
+            if 0 <= nx < maze.n and 0 <= ny < maze.n:
+                val = maze.get_cell(nx, ny)
+                if val in WALK and (nx, ny) not in parent:
+                    parent[(nx, ny)] = u
+                    if (nx, ny) == end:
+                        spine = [end]
+                        node = end
+                        while parent[node] is not None:
+                            node = parent[node]
+                            spine.append(node)
+                        return spine
+                    queue.append((nx, ny))
     return []
 
 
-# ── 资源放置（贪心挑战版）─────────────────────────────
+# ── 资源放置（固定数量：4金币 / 5陷阱 / 1BOSS）─────
 
 def place_resources(maze):
-    """在通路上放置资源（4 金币 + 5 陷阱 + 1 BOSS）
-       陷阱分层：主干 2 + 歧路 2 + 深层 1"""
+    """Place 4 coins + 5 traps + 1 BOSS on PATH cells.
+       Traps layered: 2 on spine, 2 at junctions, 1 deep."""
     n = maze.n
     start = getattr(maze, 'start', (1, 1))
     end = getattr(maze, 'end', start)
@@ -110,8 +111,8 @@ def place_resources(maze):
     max_d = max(depth.values()) if depth else 1
 
     shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
-    mid = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
-    deep = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
+    mid     = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
+    deep    = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
     junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
     dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
     spine = _find_spine(maze, start, end, path_cells)
@@ -127,9 +128,9 @@ def place_resources(maze):
 
     MAX_COINS = 4
     MAX_TRAPS = 5
-    MAX_BOSS = 1
+    MAX_BOSS  = 2
 
-    # 诱饵金币（浅中层）
+    # bait coins (shallow/mid)
     for p in mid + shallow:
         if coin_cnt >= MAX_COINS // 2:
             break
@@ -137,7 +138,7 @@ def place_resources(maze):
         coin_cnt += 1
         placed.add(p)
 
-    # 陷阱 — 主干（2个，必经）
+    # spine traps (2, unavoidable)
     _random.shuffle(spine)
     for p in spine:
         if trap_cnt >= 2:
@@ -147,7 +148,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # 陷阱 — 歧路（2个，可绕）
+    # junction traps (2, avoidable)
     junc_shuffled = junctions[:]
     _random.shuffle(junc_shuffled)
     for p in junc_shuffled:
@@ -158,7 +159,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # 陷阱 — 深层（1个，惩罚深入）
+    # deep trap (1, punishment)
     deep_shuffled = deep[:]
     _random.shuffle(deep_shuffled)
     for p in deep_shuffled:
@@ -169,7 +170,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # 深层金币（分支末端）
+    # deep coins (branch ends)
     for p in deep:
         if coin_cnt >= MAX_COINS:
             break
@@ -178,14 +179,26 @@ def place_resources(maze):
             coin_cnt += 1
             placed.add(p)
 
-    # BOSS（最深死胡同）
-    if dead_ends:
-        dead_ends_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
-        for p in dead_ends_sorted:
+    # BOSS_1: deepest dead end (optional side challenge)
+    if dead_ends and boss_cnt < 1:
+        dd_sorted = sorted(dead_ends, key=lambda p: depth.get(p, 0), reverse=True)
+        maze.set_cell(dd_sorted[0][0], dd_sorted[0][1], MAZE.BOSS)
+        boss_cnt += 1
+        placed.add(dd_sorted[0])
+
+    # BOSS_2: spine cell near end (unavoidable final guard)
+    if spine:
+        cut = max(len(spine) // 3, 1)
+        tail_spine = spine[:cut]
+        _random.shuffle(tail_spine)
+        for p in tail_spine:
             if boss_cnt >= MAX_BOSS:
                 break
-            maze.set_cell(p[0], p[1], MAZE.BOSS)
-            boss_cnt += 1
+            if p != start and p != end:
+                maze.set_cell(p[0], p[1], MAZE.BOSS)
+                boss_cnt += 1
+                placed.add(p)
+                break
 
 
 # ── 迷宫分析 ──────────────────────────────────────────
