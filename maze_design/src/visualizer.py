@@ -18,7 +18,7 @@ COLORMAP = {
     WALL:  '#1a1a2e',   # 深蓝黑 → 墙
     PATH:  '#f0f0f0',   # 浅灰白 → 通路
     START: '#00e676',   # 亮绿   → 起点
-    END:   '#ff1744',   # 红色   → 终点
+    END:   '#e53935',   # 纯红   → 终点
     COIN:  '#ffd600',   # 金色   → 金币
     TRAP:  '#9c27b0',   # 紫色   → 陷阱
     BOSS:  '#ff6d00',   # 橙色   → BOSS
@@ -163,9 +163,9 @@ def draw_dp_path(maze, path_walk, title=None, save_path=None):
 
     ax.imshow(img, interpolation='nearest')
 
-    # 在走过的路径上画半透明青色标记
+    # 在走过的路径上画半透明青色标记（不覆盖资源格）
     for x, y in path_set:
-        if grid[x][y] not in {START, END}:
+        if grid[x][y] in {PATH, START, END}:
             rect = plt.Rectangle((y - 0.5, x - 0.5), 1, 1,
                                  facecolor='#00bcd4', alpha=0.4, linewidth=0)
             ax.add_patch(rect)

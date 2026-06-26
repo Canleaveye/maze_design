@@ -80,19 +80,21 @@ class TestBacktrackDFS(unittest.TestCase):
         self.assertEqual(len(maze.maze), 16)
         self.assertEqual(len(maze.maze[0]), 16)
 
-    # ── 3. 起点终点位置正确 ─────────────────────────────
+    # ── 3. 起点终点在边缘 ──────────────────────────────
     def test_start_end_positions(self):
-        """起点(1,1) 外墙row0/col0全墙"""
+        """起点在边缘，终点在边缘"""
         for n in [15, 16, 5, 8]:
             maze = Maze(n)
             generate_maze_backtrack_dfs(maze)
             sx, sy = maze.start
             ex, ey = maze.end
 
-            self.assertEqual((sx, sy), (1, 1),
-                             f"n={n}: 起点应在 (1,1), 实为 {maze.start}")
-            self.assertTrue(ex >= 1 and ey >= 1,
-                            f"n={n}: 终点 {maze.end} 应在合法格子范围")
+            self.assertTrue(sx == 0 or sy == 0 or sx == n - 1 or sy == n - 1,
+                            f"n={n}: 起点 {maze.start} 不在边缘")
+            self.assertTrue(ex == 0 or ey == 0 or ex == n - 1 or ey == n - 1,
+                            f"n={n}: 终点 {maze.end} 不在边缘")
+            self.assertNotEqual(maze.start, maze.end,
+                                "起点和终点不能相同")
 
     # ── 4. 迷宫连通性测试 ───────────────────────────────
     def test_all_cells_reachable(self):
@@ -144,24 +146,30 @@ class TestBacktrackDFS(unittest.TestCase):
             self.assertTrue(col_has_path,
                             f"n={n}: 第 {n-2} 列全为墙，空间浪费")
 
-    # ── 7. 外墙完整性 ──────────────────────────────────
+    # ── 7. 外墙完整性（除了起点终点外，全是墙）━━━━━━━━
     def test_outer_walls(self):
-        """row0, col0, row(n-1), col(n-1) 全部是墙"""
+        """row0, col0, row(n-1), col(n-1) 除 SE 外全墙"""
         for n in [15, 16, 7, 10]:
             maze = Maze(n)
             generate_maze_backtrack_dfs(maze)
             grid = maze.maze
+            sx, sy = maze.start
+            ex, ey = maze.end
 
             for i in range(n):
-                self.assertEqual(grid[i][0], WALL,
-                                 f"n={n}: ({i},0) 不是外墙")
-                self.assertEqual(grid[i][n - 1], WALL,
-                                 f"n={n}: ({i},{n-1}) 不是外墙")
+                if (i, 0) not in {(sx, sy), (ex, ey)}:
+                    self.assertEqual(grid[i][0], WALL,
+                                     f"n={n}: ({i},0) 不是外墙")
+                if (i, n - 1) not in {(sx, sy), (ex, ey)}:
+                    self.assertEqual(grid[i][n - 1], WALL,
+                                     f"n={n}: ({i},{n-1}) 不是外墙")
             for j in range(n):
-                self.assertEqual(grid[0][j], WALL,
-                                 f"n={n}: (0,{j}) 不是外墙")
-                self.assertEqual(grid[n - 1][j], WALL,
-                                 f"n={n}: ({n-1},{j}) 不是外墙")
+                if (0, j) not in {(sx, sy), (ex, ey)}:
+                    self.assertEqual(grid[0][j], WALL,
+                                     f"n={n}: (0,{j}) 不是外墙")
+                if (n - 1, j) not in {(sx, sy), (ex, ey)}:
+                    self.assertEqual(grid[n - 1][j], WALL,
+                                     f"n={n}: ({n-1},{j}) 不是外墙")
 
     # ── 8. 多次生成稳定性 ───────────────────────────────
     def test_multiple_generations(self):

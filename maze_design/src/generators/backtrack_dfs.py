@@ -4,13 +4,10 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources
+from utils import place_resources, _pick_edge_positions
 
 
 def generate_maze_backtrack_dfs(maze, on_step=None):
-    """
-    on_step: 可选回调，每次挖墙后调用 on_step(maze, x, y)
-    """
     n = maze.n
 
     if n % 2 == 1:
@@ -18,19 +15,19 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
     else:
         max_room = n - 3
 
-    startx = starty = 1
-    endx = endy = max_room
+    # DFS 起点固定从 (1,1) 开始挖路
+    seed_x = seed_y = 1
 
     for i in range(n):
         for j in range(n):
             maze.set_cell(i, j, WALL)
 
-    maze.set_cell(startx, starty, PATH)
-    visited = {(startx, starty)}
-    stack = [(startx, starty)]
+    maze.set_cell(seed_x, seed_y, PATH)
+    visited = {(seed_x, seed_y)}
+    stack = [(seed_x, seed_y)]
 
     if on_step:
-        on_step(maze, startx, starty)
+        on_step(maze, seed_x, seed_y)
 
     while stack:
         x, y = stack[-1]
@@ -40,7 +37,6 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
             if 1 <= nx <= max_room and 1 <= ny <= max_room:
                 if (nx, ny) not in visited:
                     neighbors.append((nx, ny))
-
 
         if neighbors:
             nx, ny = random.choice(neighbors)
@@ -60,7 +56,8 @@ def generate_maze_backtrack_dfs(maze, on_step=None):
             if maze.get_cell(max_room, i) == PATH:
                 maze.set_cell(max_room + 1, i, PATH)
 
-    # ——— 先设起点终点，再放资源（避免 BOSS 被覆盖）
+    # 起点终点放在边缘（模拟进出迷宫）
+    (startx, starty), (endx, endy) = _pick_edge_positions(maze)
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
     place_resources(maze)

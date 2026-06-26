@@ -93,6 +93,32 @@ def _find_spine(maze, start, end):
     return []
 
 
+def _pick_edge_positions(maze):
+    """找起点和终点的边缘位置（模拟从外面进出迷宫）
+    返回 (start_pos, end_pos)"""
+    import random as _rnd
+    n = maze.n
+
+    edges = {'top': [], 'bottom': [], 'left': [], 'right': []}
+    for j in range(1, n - 1):
+        if maze.get_cell(1, j) != MAZE.WALL:
+            edges['top'].append((0, j))
+        if maze.get_cell(n - 2, j) != MAZE.WALL:
+            edges['bottom'].append((n - 1, j))
+    for i in range(1, n - 1):
+        if maze.get_cell(i, 1) != MAZE.WALL:
+            edges['left'].append((i, 0))
+        if maze.get_cell(i, n - 2) != MAZE.WALL:
+            edges['right'].append((i, n - 1))
+
+    start_candidates = edges['top'] + edges['left']
+    end_candidates = edges['bottom'] + edges['right']
+    if not start_candidates or not end_candidates:
+        return (1, 1), (n - 2, n - 2)
+
+    start = _rnd.choice(start_candidates)
+    end = _rnd.choice(end_candidates)
+    return start, end
 # 资源放置函数（固定数量：4金币 / 5陷阱 / 1BOSS
 
 def place_resources(maze):

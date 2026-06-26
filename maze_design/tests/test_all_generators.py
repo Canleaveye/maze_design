@@ -88,12 +88,18 @@ class TestAllGenerators(unittest.TestCase):
                 func(m)
                 grid = m.maze
                 size = len(grid)
+                sx, sy = getattr(m, 'start', (-1, -1))
+                ex, ey = getattr(m, 'end', (-1, -1))
                 for i in range(size):
-                    self.assertEqual(grid[i][0], WALL)
-                    self.assertEqual(grid[i][size - 1], WALL)
+                    if (i, 0) not in {(sx, sy), (ex, ey)}:
+                        self.assertEqual(grid[i][0], WALL)
+                    if (i, size - 1) not in {(sx, sy), (ex, ey)}:
+                        self.assertEqual(grid[i][size - 1], WALL)
                 for j in range(size):
-                    self.assertEqual(grid[0][j], WALL)
-                    self.assertEqual(grid[size - 1][j], WALL)
+                    if (0, j) not in {(sx, sy), (ex, ey)}:
+                        self.assertEqual(grid[0][j], WALL)
+                    if (size - 1, j) not in {(sx, sy), (ex, ey)}:
+                        self.assertEqual(grid[size - 1][j], WALL)
 
     def test_all_resources_placed(self):
         for name, func in GENERATORS.items():

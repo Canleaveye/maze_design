@@ -22,7 +22,7 @@ class InteractiveMaze:
 
     COLORS = {
         WALL: '#2d2d5e', PATH: '#e8e8e8', START: '#00e676',
-        END: '#ff1744', COIN: '#ffd600', TRAP: '#9c27b0', BOSS: '#ff6d00',
+        END: '#e53935', COIN: '#ffd600', TRAP: '#9c27b0', BOSS: '#ff6d00',
     }
     NAMES = {
         WALL: 'WALL', PATH: 'PATH', START: 'START', END: 'END',
@@ -162,7 +162,7 @@ class InteractiveMaze:
         legend = tk.Frame(self.root, bg='#1a1a2e', pady=4)
         legend.pack(fill=tk.X)
         for val, color in [(WALL, '#2d2d5e'), (PATH, '#e8e8e8'), (START, '#00e676'),
-                            (END, '#ff1744'), (COIN, '#ffd600'), (TRAP, '#9c27b0'),
+                            (END, '#e53935'), (COIN, '#ffd600'), (TRAP, '#9c27b0'),
                             (BOSS, '#ff6d00')]:
             f = tk.Frame(legend, bg='#1a1a2e')
             f.pack(side=tk.LEFT, padx=8)

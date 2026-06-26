@@ -3,8 +3,7 @@
 
 import random
 from maze import WALL, PATH, START, END
-from utils import place_resources
-from collections import deque
+from utils import place_resources, _pick_edge_positions
 
 
 class _UnionFind:
@@ -30,26 +29,6 @@ class _UnionFind:
         if self.rank[ra] == self.rank[rb]:
             self.rank[ra] += 1
         return True
-
-
-def _find_furthest_cell(maze, start):
-    n = maze.n
-    queue = deque([start])
-    dist = {start: 0}
-    furthest = start
-    max_d = 0
-    while queue:
-        x, y = queue.popleft()
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < n and 0 <= ny < n:
-                if maze.get_cell(nx, ny) != WALL and (nx, ny) not in dist:
-                    dist[(nx, ny)] = dist[(x, y)] + 1
-                    queue.append((nx, ny))
-                    if dist[(nx, ny)] > max_d:
-                        max_d = dist[(nx, ny)]
-                        furthest = (nx, ny)
-    return furthest
 
 
 def generate_maze_greedy(maze, on_step=None):
@@ -102,9 +81,7 @@ def generate_maze_greedy(maze, on_step=None):
             if maze.get_cell(max_room, i) == PATH:
                 maze.set_cell(max_room + 1, i, PATH)
 
-    startx = starty = 1
-    endx, endy = _find_furthest_cell(maze, (startx, starty))
-
+    (startx, starty), (endx, endy) = _pick_edge_positions(maze)
     maze.set_start(startx, starty)
     maze.set_end(endx, endy)
     place_resources(maze)
