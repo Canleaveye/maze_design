@@ -114,7 +114,7 @@ def _pick_edge_positions(maze):
     start_candidates = edges['top'] + edges['left']
     end_candidates = edges['bottom'] + edges['right']
     if not start_candidates or not end_candidates:
-        return (1, 1), (n - 2, n - 2)
+        return (0, 1), (n - 1, 1)
 
     start = _rnd.choice(start_candidates)
     end = _rnd.choice(end_candidates)
@@ -125,7 +125,7 @@ def place_resources(maze):
     """Place 4 coins + 5 traps + 1 BOSS on PATH cells.
        Traps layered: 2 on spine, 2 at junctions, 1 deep."""
     n = maze.n
-    start = getattr(maze, 'start', (1, 1))
+    start = getattr(maze, 'start', (0, 1))
     end = getattr(maze, 'end', start)
 
     path_cells = []
@@ -243,7 +243,7 @@ def place_resources(maze):
 def analyze_maze(maze):
     grid = maze.maze
     n = maze.n
-    start = getattr(maze, 'start', (1, 1))
+    start = getattr(maze, 'start', (0, 1))
     end = getattr(maze, 'end', start)
     WALK = {MAZE.PATH, MAZE.START, MAZE.END, MAZE.COIN, MAZE.TRAP, MAZE.BOSS}
 
