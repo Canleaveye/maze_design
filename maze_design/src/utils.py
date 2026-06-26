@@ -167,19 +167,22 @@ def place_resources(maze):
     trap_cnt = 0
     boss_cnt = 0
 
-    # 按迷宫房间数缩放资源（7×7→3coin/3trap, 15×15→9coin/13trap）
+    # 按迷宫房间数缩放资源
     room_count = ((n + 1) // 2) ** 2
+    # 小迷宫
     if n <= 7:
         MAX_COINS, MAX_TRAPS = 3, 3
+    # 中等迷宫
     elif n <= 15:
         MAX_COINS, MAX_TRAPS = 9, 13
     else:
+        # 大迷宫
         MAX_COINS = max(12, room_count // 6)
         MAX_TRAPS = max(16, room_count // 4)
     MAX_BOSS = 1
 
-    # bait coins (shallow/mid)
-    for p in mid + shallow:
+    # bait coins: only in mid layer (30%~65% depth), lures greedy AI
+    for p in mid:
         if coin_cnt >= MAX_COINS // 2:
             break
         maze.set_cell(p[0], p[1], MAZE.COIN)
