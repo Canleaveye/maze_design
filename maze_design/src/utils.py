@@ -119,31 +119,42 @@ def _pick_edge_positions(maze):
     start = _rnd.choice(start_candidates)
     end = _rnd.choice(end_candidates)
     return start, end
-# 资源放置函数（固定数量：4金币 / 5陷阱 / 1BOSS
+
+
+# 资源放置函数，固定数量：4金币 / 5陷阱 / 1BOSS
 
 def place_resources(maze):
-    """Place 4 coins + 5 traps + 1 BOSS on PATH cells.
-       Traps layered: 2 on spine, 2 at junctions, 1 deep."""
+    # 迷宫尺寸
     n = maze.n
+
     start = getattr(maze, 'start', (0, 1))
     end = getattr(maze, 'end', start)
 
+    # 统计迷宫中所有可行走单元格
     path_cells = []
     for i in range(n):
         for j in range(n):
             if maze.get_cell(i, j) == MAZE.PATH:
                 path_cells.append((i, j))
     total = len(path_cells)
+
+    # 不合法的迷宫不放置资源
     if total == 0:
         return
 
     depth = _compute_depths(maze, start)
+    # 计算迷宫中最深的单元格深度，用于资源放置策略
     max_d = max(depth.values()) if depth else 1
 
+    # 深度前30%的浅层
     shallow = [p for p in path_cells if depth.get(p, 0) < max_d * 0.3]
+    # 深度30%-65%的中层
     mid     = [p for p in path_cells if max_d * 0.3 <= depth.get(p, 0) < max_d * 0.65]
+    # 深度后35%的深层
     deep    = [p for p in path_cells if depth.get(p, 0) >= max_d * 0.65]
+    # 找到迷宫中所有的分叉点用于资源放置策略
     junctions = [p for p in path_cells if _count_walkable_neighbors(maze, p) > 2]
+    # 死胡同
     dead_ends = [p for p in path_cells if _count_walkable_neighbors(maze, p) == 1]
     spine = _find_spine(maze, start, end)
 
@@ -156,14 +167,15 @@ def place_resources(maze):
     trap_cnt = 0
     boss_cnt = 0
 
-    # 按迷宫规模决定资源数量
-    room_count = ((n + 1) // 2) ** 2  # 房间格数量
+    # 按迷宫房间数缩放资源（7×7→3coin/3trap, 15×15→9coin/13trap）
+    room_count = ((n + 1) // 2) ** 2
     if n <= 7:
         MAX_COINS, MAX_TRAPS = 3, 3
     elif n <= 15:
         MAX_COINS, MAX_TRAPS = 9, 13
     else:
-        MAX_COINS, MAX_TRAPS = max(12, room_count // 5), max(16, room_count // 3)
+        MAX_COINS = max(12, room_count // 6)
+        MAX_TRAPS = max(16, room_count // 4)
     MAX_BOSS = 1
 
     # bait coins (shallow/mid)
@@ -197,7 +209,7 @@ def place_resources(maze):
             trap_cnt += 1
             placed.add(p)
 
-    # deep trap (at least 1, punishment for deep exploration)
+    # deep trap (at least 1)
     deep_shuffled = deep[:]
     _random.shuffle(deep_shuffled)
     for p in deep_shuffled:
@@ -217,15 +229,14 @@ def place_resources(maze):
             coin_cnt += 1
             placed.add(p)
 
-    # BOSSes: near spine but not on it (high-traffic branches, can be bypassed)
+    # BOSS: near spine (high-traffic, bypassable)
     spine_set = set(spine)
     near_spine = []
     for p in path_cells:
         if p in spine_set or p == start or p == end:
             continue
-        # compute distance to nearest spine cell
         for sp in spine:
-            if abs(p[0]-sp[0]) + abs(p[1]-sp[1]) <= 3:
+            if abs(p[0] - sp[0]) + abs(p[1] - sp[1]) <= 3:
                 near_spine.append(p)
                 break
     _random.shuffle(near_spine)
@@ -238,7 +249,7 @@ def place_resources(maze):
             placed.add(p)
 
 
-# ── 迷宫分析 ──────────────────────────────────────────
+# 迷宫分析
 
 def analyze_maze(maze):
     grid = maze.maze

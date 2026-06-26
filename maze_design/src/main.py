@@ -81,8 +81,14 @@ def main():
                      title=f'DP {label} value={max_gold}',
                      save_path=os.path.join(output_dir, f'{key}_dp.png'))
 
-        # ── BOSS 战（1 个标志物，内含 4 个 BOSS 群）───
-        boss_hps = [30, 40, 50, 60]           # 4 个 BOSS，总 HP=180
+        # ── BOSS 战（1 个标志物，内含 4 个 BOSS，血量按尺寸缩放）───
+        if n <= 7:
+            boss_hps = [15, 20, 25, 30]        # 总 HP=90
+        elif n <= 15:
+            boss_hps = [30, 40, 50, 60]        # 总 HP=180
+        else:
+            base = n * 4
+            boss_hps = [base, base + 10, base + 20, base + 30]
         skills = [(5, 0), (10, 2), (15, 4)]
         bf = boss_fight_branch_bound(boss_hps, skills,
                                       max_rounds=25, coin_per_revive=5)
@@ -115,7 +121,7 @@ def main():
     # ── 汇总 ──
     compare = {
         "mazeSize": n,
-        "bosses": [30, 40, 50, 60],
+        "bosses": boss_hps,
         "skills": [[5, 0], [10, 2], [15, 4]],
         "complexitySummary": {
             k: {"time": COMPLEXITY[k]["time"], "space": COMPLEXITY[k]["space"]}
