@@ -5,3 +5,6 @@ AGENTS.md
 # Python 缓存
 __pycache__/
 *.pyc
+
+# 可视化产物（本地生成，不提交）
+output/
