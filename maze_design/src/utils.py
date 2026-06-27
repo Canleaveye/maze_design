@@ -94,12 +94,11 @@ def _find_spine(maze, start, end):
 
 
 def pick_edge_positions(maze):
-    """找起点和终点的边缘位置（模拟从外面进出迷宫）
-    返回 (start_pos, end_pos)"""
-    import random as _rnd
+    """ 设置起点和终点的边缘位置"""
     n = maze.n
 
     edges = {'top': [], 'bottom': [], 'left': [], 'right': []}
+    # 确保起点不被堵死
     for j in range(1, n - 1):
         if maze.get_cell(1, j) != MAZE.WALL:
             edges['top'].append((0, j))
@@ -115,9 +114,9 @@ def pick_edge_positions(maze):
     end_candidates = edges['bottom'] + edges['right']
     if not start_candidates or not end_candidates:
         return (0, 1), (n - 1, 1)
-
-    start = _rnd.choice(start_candidates)
-    end = _rnd.choice(end_candidates)
+    # 随机选择起点和终点
+    start = _random.choice(start_candidates)
+    end = _random.choice(end_candidates)
     return start, end
 
 

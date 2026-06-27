@@ -189,7 +189,7 @@ class InteractiveMaze:
                 color = self.COLORS.get(val, '#000')
                 x1, y1 = j * cs, i * cs
                 self.canvas.create_rectangle(x1, y1, x1 + cs, y1 + cs,
-                                              fill=color, outline='#444', width=1)
+                                               fill=color, outline='')
 
         # 当前位置高亮
         if state["current"]:

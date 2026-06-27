@@ -49,12 +49,16 @@ def _grid_to_image(grid, current=None, ax=None, title=None):
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
+        fig.patch.set_facecolor('#1a1a2e')
     ax.clear()
-    ax.imshow(img, interpolation='nearest')
+    ax.imshow(img, interpolation='nearest', aspect='equal')
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.patch.set_facecolor('#1a1a2e')
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     if title:
-        ax.set_title(title, fontsize=14)
+        ax.set_title(title, fontsize=14, color='white')
     return ax
 
 
